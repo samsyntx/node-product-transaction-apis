@@ -1,0 +1,14 @@
+### Inserting Data from API to Database
+GET http://localhost:3000/initialize-database
+
+### Create an API for statistics
+GET http://localhost:3000/statistics?month=April
+
+### Bar Chart
+GET http://localhost:3000/bar-chart?month=June
+
+### Pie Chart
+GET http://localhost:3000/pie-chart?month=February
+
+### Combine
+GET http://localhost:3000/combined-data?month=February
