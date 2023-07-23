@@ -5,7 +5,7 @@ const path = require("path");
 const axios = require('axios');
 
 // Define Database
-const databasePath = path.join(__dirname, "database.db");
+const databasePath = path.join(__dirname, "sqlite.db");
 
 // Calling express
 const app = express();
@@ -54,24 +54,37 @@ async function insertSeedData(seedData) {
   // Using a transaction for better performance
   await database.run('BEGIN TRANSACTION');
 
-  seedData.forEach(async (data) => {
-    const { id, title, price, description, category, image, sold, dateOfSale } = data;
-    const idInt = parseInt(id)
-    await database.run(insertQuery, [idInt, title, price, description, category, image, sold, dateOfSale]);
-  });
+  try {
+    for (const data of seedData) {
+      const { id, title, price, description, category, image, sold, dateOfSale } = data;
+      const idInt = parseInt(id);
 
-  await database.run('COMMIT');
+      // Check if the ID already exists in the database
+      const existingProduct = await database.get('SELECT id FROM products WHERE id = ?', [idInt]);
+      if (existingProduct) {
+        // Send an error response if ID already exists
+        await database.run('ROLLBACK');
+        throw new Error(`Product with ID ${idInt} already exists in the database.`);
+      }
+
+      await database.run(insertQuery, [idInt, title, price, description, category, image, sold, dateOfSale]);
+    }
+
+    await database.run('COMMIT');
+  } catch (error) {
+    throw error;
+  }
 }
 
 // Endpoint to initialize the database with seed data
-app.get('/initialize-database', async (request, response) => {
+app.get('/initialize-database', async (req, res) => {
   try {
-    const response = await axios.get('https://s3.amazonaws.com/roxiler.com/product_transaction.json');
-    seedData = response.data;
+    const axiosResponse = await axios.get('https://s3.amazonaws.com/roxiler.com/product_transaction.json');
+    const seedData = axiosResponse.data;
     await insertSeedData(seedData);
-    response.json({ message: 'Database initialized with seed data.' });
+    res.json({ message: 'Database initialized with seed data.' });
   } catch (error) {
-    response.status(500).json({ error: 'Failed to initialize the database.' });
+    res.status(500).json({ error: `${error}` });
   }
 });
 
